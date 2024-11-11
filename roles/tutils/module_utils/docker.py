@@ -1,82 +1,43 @@
-import socket
-import json
+try:
+    from ansible.module_utils.api_base import DockerBase
+except ImportError:
+    from .api_base import DockerBase
 
 
-class RequestBuilder(object):
-    def __init__(self, method, host=None, endpoint=None, content_type=None, payload=None):
-        self.AVAILABLE_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH"]
+class Docker:
+    SOCKET_FILE = "/var/run/docker.sock"
+    HOSTNAME = 'localhost'
 
-        if method not in self.AVAILABLE_METHODS:
-            raise Exception("Method is not allowed")
+    def __init__(self):
+        self.__docker = DockerBase(file=self.SOCKET_FILE, host=self.HOSTNAME)
 
-        if not content_type:
-            content_type = "application/json"
+    def create_container(self, image, **kwargs):
+        """
+        create the docker container
 
-        self.method = method
-        self.host = host or 'localhost'
-        self.endpoint = endpoint or "/"
-        self.content_type = content_type
-        self.payload = payload
+        Parameters:
+            image (str): The container image.
+            name (str, optional): The container name.
+            cmd (list, optional): Command to run in the container.
+            hostname (str, optional): Hostname of the container.
+            domain_name (str, optional): Domain name of the container.
+            user (str, optional): User to run the container.
+        """
+        return self.__docker.create_container(image=image, **kwargs)['body']
 
-    def dispatch(self):
-        _request_line = f"{self.method} {self.endpoint} HTTP/1.1\r\n"
-        _headers = (
-            f"Host: {self.host}\r\n"
-            f"Content-Type: {self.content_type}"
-        )
+    def start_container(self, container_id: str):
+        """
+        Starts a container with specified parameters and forwards modified args to create_container.
 
-        if self.method.upper() == "POST":
-            if "create" in self.endpoint:
-                _headers += f"Content-length: {len(self.content_type)}\r\n"
-            if "start" in self.endpoint:
-                _headers += f"Content-length: 0\r\n"
-
-        _headers += "\r\n"
-
-        _body = json.dumps(self.payload) if self.payload else ""
-
-        return _request_line + _headers + _body
+        :param container_id:
+        :type container_id:
+        :return:
+        :rtype:
+        """
+        return self.__docker.start_container(container_id)['body']
 
 
-class DockerApiBase(object):
-    def __init__(self, file: str):
-        self.client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.sock_file = file if file else "/var/run/docker.sock"
-        self.connect()
-
-    def connect(self):
-        self.client.connect(self.sock_file)
-
-    def send_request(self, request):
-        try:
-            self.client.sendall(request)
-        except Exception as e:
-            raise Exception("Error while sending the request")
-
-    def receive_data(self, buffer_size):
-        if not buffer_size:
-            buffer_size = 4096
-
-        data = b""
-        while True:
-            part = self.client.recv(buffer_size)
-            data += part
-            if len(part) < buffer_size:
-                break
-        return data.decode()
-
-    @staticmethod
-    def filter_response(response):
-        if isinstance(response, bytes):
-            response = response.decode("utf-8")
-        data = response.split("\r\n\r\n")[1]
-
-        return data
-
-
-class DockerBase(DockerApiBase):
-    def create_container(self, image, name=None, cmd:list=None, hostname=None, domain_name=None, user=None, tty:bool=None) -> dict:
-        _method = "GET"
-        _endpoint = f"/containers/create?{name}"
-        rr = RequestBuilder(host="localhost", endpoint=_endpoint, method=_method, )
+# cc = Docker()
+# c_id = cc.create_container(image='busybox', cmd=['sleep', '20'])
+# print(c_id['Id'])
 

@@ -11,7 +11,7 @@
     container_name: "Sandbox ready"
     image: "busybox"
     version: "latest"
-    cmd: ["sleep", "30"]
+    cmd: ["sleep", "10"]
     state: "started"
   register: res
 

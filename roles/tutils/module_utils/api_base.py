@@ -1,0 +1,92 @@
+import socket
+from pydantic import BaseModel
+
+try:
+    from ansible.module_utils.docker_config import ContainerConfig
+    from ansible.module_utils.dispacher import RequestBuilder
+    from ansible.module_utils.formatters import request_formatter
+except ImportError:
+    from .docker_config import ContainerConfig
+    from .dispacher import RequestBuilder
+    from .formatters import request_formatter
+
+
+class ApiEndpointMapping:
+    class Containers:
+        class Create:
+            Method = 'POST'
+            Endpoint = "/containers/create"
+
+        class Start:
+            Method = "POST"
+
+            @staticmethod
+            def Endpoint(value) -> str:
+                if not value:
+                    # also validate the container id, should be exists `docker ps`
+                    raise Exception("Container id should be provided")
+
+                if not isinstance(value, str):
+                    raise Exception("Container ID should string")
+
+                return f"/containers/{value}/start"
+
+
+class DockerApiBase(object):
+    def __init__(self, file: str = None, host=None):
+        self.client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.sock_file = file or "/var/run/docker.sock"
+        self.host = host or 'localhost'
+        self.connect()
+
+    def connect(self):
+        self.client.connect(self.sock_file)
+
+    def send_request(self, request):
+        try:
+            self.client.sendall(request)
+        except Exception as e:
+            raise Exception("Error while sending the request")
+
+    def receive_data(self, buffer_size=None):
+        if not buffer_size:
+            buffer_size = 4096
+
+        data = b""
+        while True:
+            part = self.client.recv(buffer_size)
+            data += part
+            if len(part) < buffer_size:
+                break
+        return data.decode("utf-8")
+
+    @staticmethod
+    def filter_response(response):
+        if isinstance(response, bytes):
+            response = response.decode("utf-8")
+        data = response.split("\r\n\r\n")[1]
+
+        return data
+
+
+class DockerBase(DockerApiBase):
+
+    def __common_ops(self, method, endpoint, payload=None):
+        rr = RequestBuilder(host=self.host, method=method, endpoint=endpoint, payload=payload)
+        _request = rr.dispatch().encode("utf-8")
+        self.send_request(_request)
+        _response = self.receive_data()
+        return request_formatter(_response)
+
+    def create_container(self, image, **kwargs) -> dict:
+        _method = ApiEndpointMapping.Containers.Create.Method
+        _endpoint = ApiEndpointMapping.Containers.Create.Endpoint
+        _payload = ContainerConfig(image=image, **kwargs).to_dict()
+
+        return self.__common_ops(_method, _endpoint, _payload)
+
+    def start_container(self, container_id):
+        _endpoint = ApiEndpointMapping.Containers.Start.Endpoint(container_id)
+        _method = ApiEndpointMapping.Containers.Start.Method
+
+        return self.__common_ops(_method, _endpoint)

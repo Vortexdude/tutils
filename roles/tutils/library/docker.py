@@ -1,5 +1,8 @@
 from ansible.module_utils.basic import AnsibleModule
-
+try:
+    from ansible.module_utils.docker import Docker
+except ImportError:
+    from ..module_utils.docker import Docker
 
 def run_module():
     module_args = dict(
@@ -17,10 +20,20 @@ def run_module():
     )
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
-    result['image'] = module.params.get('image')
+    docker_image = module.params.get('image')
+    container_init = module.params.get('cmd')
+    container_state = module.params.get('state')
 
     if module.check_mode:
         module.exit_json()
+
+    dock = Docker()
+    if container_state == 'started':
+        response = dock.create_container(image=docker_image, cmd=container_init)
+        container_id = response['Id']
+
+        result['response'] = dock.start_container(container_id)
+        # result['response'] = container_id
 
     module.exit_json(**result)
 
