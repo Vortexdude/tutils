@@ -76,6 +76,7 @@ class DockerApiBase(object):
 
 class DockerBase(DockerApiBase):
     def create_container(self, image, name=None, cmd:list=None, hostname=None, domain_name=None, user=None, tty:bool=None) -> dict:
-        _method = "Get"
-        _endpoint = "/container/create"
+        _method = "GET"
+        _endpoint = f"/containers/create?{name}"
         rr = RequestBuilder(host="localhost", endpoint=_endpoint, method=_method, )
+
