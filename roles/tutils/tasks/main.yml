@@ -11,7 +11,7 @@
     container_name: "Sandbox_ready"
     image: "nginx"
     version: "latest"
-    state: "started"
+    state: "absent"
     ports: "8080:80"
   register: res
 
