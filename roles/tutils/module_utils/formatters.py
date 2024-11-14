@@ -6,8 +6,8 @@
 #      Nitin Namdev <nitinnamdeo456@gmail.com>
 
 
-
 import json
+from functools import wraps
 
 def request_formatter(data):
     _response_status = dict()
@@ -35,3 +35,17 @@ def request_formatter(data):
 
     return _response_status
 
+
+def validator(val_func):
+    def decorator(method):
+        @wraps(method)
+        def wrapper(self, *args, **kwargs):
+            if not val_func(*args, **kwargs):
+                raise ValueError("Validation failed for the argument: %s" %args)
+            return method(self, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def container_id_validator(container_id=None):
+    return bool(container_id)

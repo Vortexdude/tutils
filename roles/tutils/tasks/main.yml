@@ -8,11 +8,11 @@
 
 - name: Creating Docker Container
   docker:
-    container_name: "Sandbox ready"
-    image: "busybox"
+    container_name: "Sandbox_ready"
+    image: "nginx"
     version: "latest"
-    cmd: ["sleep", "10"]
     state: "started"
+    ports: "8080:80"
   register: res
 
 - debug: msg="{{ res }}"
