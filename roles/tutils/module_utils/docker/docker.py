@@ -50,7 +50,7 @@ class Docker:
 
         return self.__docker.list_containers(all_containers)
 
-    def validate_container(self, container_name):
+    def validate_container(self, container_name, *args, **kwargs):
         """Check whether docker container exists or not"""
 
         return self.__docker.validate_container(container_name)
@@ -66,3 +66,17 @@ class Docker:
         """Remove docker container like docker rm"""
 
         return self.__docker.remove_container(container_id)
+
+    def rebuild_container(self, container_id: str, *args, **kwargs):
+        """If something is changed to the container you can call this method"""
+        self.__docker.stop_container(container_id)
+        self.__docker.remove_container(container_id)
+        response = self.__docker.create_container(*args, **kwargs)
+        container_id = response['Id']
+        return self.__docker.start_container(container_id)
+
+    def fetch_image_metadata(self, image):
+        return self.__docker.local_image_metadata(image)
+
+    def pull_image(self, image, tag='latest'):
+        return self.__docker.pull_image(image, tag)

@@ -4,28 +4,45 @@ try:
     from ansible.module_utils.docker import Docker
     from ansible.module_utils.docker_config import id_generate
 except ImportError:
-    from roles.tutils.module_utils import Docker
-    from roles.tutils.module_utils import id_generate
+    from ..module_utils.docker import Docker
+    from ..module_utils.docker import id_generate
 
 STATE_CHOICES: list[str] = ['started', 'restarted', 'stopped', 'absent']
 
 
 class StateManagement:
-    def __init__(self, container_data=None, desired_state=None):
+    def __init__(self, container_data=None, desired_state=None, module_args=None):
         if container_data is None:
             container_data = dict()
 
         if desired_state not in STATE_CHOICES:
             raise Exception(f"State should be {', '.join(STATE_CHOICES)}")
 
-        self.container_state = container_data['State']
+        self.module_specs: dict = module_args
         self.desired_state = desired_state
+        self.container_data = container_data
+        self._arg_setter()
+
+    def _arg_setter(self):
+        if not self.container_data:
+            return
+
+        for pm in self.container_data['Ports']:
+            self.port_mapping = []
+            if not pm:
+                return []
+
+            elif pm['IP'] == "0.0.0.0":
+                self.port_mapping.append(pm)
+
+        self.container_state = self.container_data['State']
         self.is_container_running = self._is_container_running()
         self.need_start = self._need_start()
         self.need_restart = self._need_restart()
         self.need_removal = self._need_removal()
         self.should_stop_and_removed = self._should_stop_and_remove()
         self.should_stop = self._should_stop()
+        self.changes = True if self.validate_image() or self.validate_port() else False
 
     def _is_container_running(self):
         return "running" in self.container_state
@@ -44,6 +61,36 @@ class StateManagement:
 
     def _should_stop(self):
         return self._is_container_running() and 'stopped' in self.desired_state
+
+    def validate_image(self):
+        if 'image' not in self.module_specs:
+            raise Exception("Image is required")
+
+        if self.container_data['Image'] != self.module_specs['image']:
+            return True
+        return False
+
+    def validate_port(self):
+        """Return False if ports are missmatch
+
+        if given port having public and private ports like "8080:80"
+        then it will compare both the ports if they are not matched container
+        should be stopped remove and restart again
+        """
+        if 'ports' in self.module_specs:
+            given_ports = self.module_specs['ports']
+            public_port, private_port = given_ports.split(":")
+
+            for _ports in self.container_data['Ports']:
+                if "IP" not in _ports:
+                    return False
+
+                if _ports['IP'] == "0.0.0.0":
+                    if public_port != str(_ports['PublicPort']):
+                        return True
+                    if private_port != str(_ports['PrivatePort']):
+                        return True
+        return False
 
 
 def run_module():
@@ -70,10 +117,18 @@ def run_module():
     desired_container_state = module.params.get('state')
     port_mapping = module.params.get('ports')
 
+    _create_container_args = dict(
+        image=docker_image,
+        name=container_name,
+        ports=port_mapping,
+        cmd=container_init
+    )
+
     if module.check_mode:
         module.exit_json()
 
     dock = Docker()
+    # module.fail_json({"message": dock.fetch_image_metadata("java")})
     response = {}
     changed = False
 
@@ -83,7 +138,13 @@ def run_module():
     container = dock.validate_container(container_name)
 
     if container:
-        dsm = StateManagement(container_data=container, desired_state=desired_container_state)
+        dsm = StateManagement(container_data=container, desired_state=desired_container_state, module_args=module.params)
+
+        if dsm.changes: # if something changed
+            module.warn("Some parameters are changed")
+            dock.rebuild_container(container_id=container['Id'], **_create_container_args)
+            changed = True
+
         if dsm.need_start:
             response = dock.start_container(container['Id'])
             changed = True
@@ -107,8 +168,7 @@ def run_module():
 
     else:
         if desired_container_state in {"started", "stopped"}:
-            response = dock.create_container(image=docker_image, name=container_name, ports=port_mapping,
-                                             cmd=container_init)
+            response = dock.create_container(**_create_container_args)
             changed = True
             if desired_container_state == "started":
                 container_id = response['Id']

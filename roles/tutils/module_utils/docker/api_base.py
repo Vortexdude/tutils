@@ -1,3 +1,4 @@
+import json
 import socket
 from pydantic import BaseModel
 
@@ -87,8 +88,11 @@ class DockerApiBase(object):
 
 class DockerBase(DockerApiBase):
 
-    def __common_ops(self, method, endpoint, payload=None):
-        rr = RequestBuilder(host=self.host, method=method, endpoint=endpoint, payload=payload)
+    def __common_ops(self, method, endpoint, payload=None, host=None):
+        if not host:
+            host = self.host
+
+        rr = RequestBuilder(host=host, method=method, endpoint=endpoint, payload=payload)
         _request = rr.dispatch().encode("utf-8")
         self.send_request(_request)
         _response = self.receive_data()
@@ -141,5 +145,20 @@ class DockerBase(DockerApiBase):
 
                 if container_name == c_name:
                     return container
-
         return {}
+
+    def local_image_metadata(self, image=None, tag=None):
+        # curl --unix-socket /var/run/docker.sock http:/v1.41/images/python/json
+        if not image:
+            raise Exception("Image not specify")
+
+        _host = "v1.41"
+        _method = "GET"
+        _endpoint = f"/images/{image}:{tag}/json" if tag else f"/images/{image}/json"
+        return self.__common_ops(method=_method, endpoint=_endpoint, host=_host)
+
+    def pull_image_from_dockerhub(self, image, tag=None):
+        _host = "v1.41"
+        _method = "POST"
+        _endpoint = f"/images/create"
+        _payload = json.loads()
