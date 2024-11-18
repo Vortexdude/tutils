@@ -128,7 +128,6 @@ def run_module():
         module.exit_json()
 
     dock = Docker()
-    # module.fail_json({"message": dock.fetch_image_metadata("java")})
     response = {}
     changed = False
 
