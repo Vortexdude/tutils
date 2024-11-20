@@ -16,41 +16,6 @@ def kwargs_from_env(environment=None):
 
     return params
 
-class RequestBuilder(object):
-    def __init__(self, method, host=None, endpoint=None, content_type=None, payload=None):
-        self.AVAILABLE_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH"]
-
-        if method not in self.AVAILABLE_METHODS:
-            raise Exception("Method is not allowed")
-
-        if not content_type:
-            content_type = "application/json"
-
-        self.method = method
-        self.host = host or 'localhost'
-        self.endpoint = endpoint or "/"
-        self.content_type = content_type
-        self.payload = payload
-
-    def dispatch(self) -> str:
-        _request_line = f"{self.method} {self.endpoint} HTTP/1.1\r\n"
-        _headers = (
-            f"Host: {self.host}\r\n"
-            f"Content-Type: {self.content_type}\r\n"
-        )
-
-        if self.method.upper() == "POST":
-            if "create" in self.endpoint:
-                _headers += f"Content-length: {len(json.dumps(self.payload))}\r\n"
-            if "start" in self.endpoint:
-                _headers += f"Content-length: 0\r\n"
-
-        _headers += "\r\n"
-
-        _body = json.dumps(self.payload) if self.payload else ""
-
-        return _request_line + _headers + _body
-
 def request_formatter(data):
     _response_status = dict()
 
@@ -76,3 +41,30 @@ def request_formatter(data):
                     _response_status['body'] = {}
 
     return _response_status
+
+
+class Executor:
+    line_end: str = "\r\n"
+
+    def __init__(self, host=None):
+        self.host = host or "localhost"
+
+    def dispatch(self, method: str, endpoint=None, content_type=None, payload=None):
+        if not content_type:
+            content_type = "application/json"
+        _request_line = f"{method.upper()} {endpoint} HTTP/1.1{self.line_end}"
+        _headers = (
+            f"Host: {self.host}{self.line_end}"
+            f"Content-Type: {content_type}{self.line_end}"
+        )
+        if method.upper() == "POST":
+            if "create" in endpoint:
+                _headers += f"Content-length: {len(json.dumps(payload))}{self.line_end}"
+            if "start" in endpoint:
+                _headers += f"Content-length: 0{self.line_end}"
+
+        _headers += self.line_end
+
+        _body = json.dumps(payload) if payload else ""
+
+        return _request_line + _headers + _body
