@@ -3,6 +3,7 @@ from typing import Optional, Union, List, Dict
 
 class Model(BaseModel):
     Id: str
+    client: object = None
 
     @property
     def short_id(self) -> str:
@@ -75,3 +76,14 @@ class Container(Model):
 
         return data
 
+    @classmethod
+    def from_data(cls, data, client=None):
+        data['client'] = client
+        container = cls.model_validate(data)
+        return container
+
+    def stop(self):
+        return self.client.api.stop_container(self.Id)
+
+    def start(self):
+        return self.client.api.start_container(self.Id)

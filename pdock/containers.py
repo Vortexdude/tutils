@@ -45,8 +45,8 @@ class ContainersOps(Collection):
         if not container_id:
             raise
         resp = self.client.api.inspect_container(container_id)
-        return self.model(**resp)
+        return self.model.from_data(resp, client=self.client)
 
     def list(self, all=False):
         response = self.client.api.containers(all=all)
-        return [self.model(**r) for r in response]
+        return [self.model.from_data(r) for r in response]

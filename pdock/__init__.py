@@ -6,7 +6,7 @@ def main():
     containers = client.containers.list()
     print(containers[0].ImageID)
     container = client.containers.get(container_id=containers[0].short_id)
-    print(container.ImageID)
+    container.stop()
 
 
 if __name__ == "__main__":
