@@ -1,3 +1,5 @@
+import logging
+
 from pydantic import BaseModel
 
 class Collection:
@@ -15,3 +17,4 @@ class Model(BaseModel):
     def short_id(self):
         return self.Id[:12]
 
+logger = logging.getLogger(__name__)

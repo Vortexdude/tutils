@@ -117,3 +117,14 @@ class HttpReq(BaseHttpReq):
             query_param=query_param
         )
         return response
+
+    def _delete(self, url, payload=None, content_type=None, query_param=None):
+        __method = "DELETE"
+        response = self._common_ops(
+            method=__method,
+            endpoint=url,
+            content_type=content_type,
+            payload=payload,
+            query_param=query_param
+        )
+        return response

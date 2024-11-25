@@ -8,3 +8,6 @@ class ApiMixing(HttpReq, ContainerApiMixing):
 
     def post(self, url, /, *args, **kwargs):
         return self._post(url, *args, **kwargs)
+
+    def delete(self, url, /, *args, **kwargs):
+        return self._delete(url, *args, **kwargs)

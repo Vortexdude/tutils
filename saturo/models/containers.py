@@ -16,6 +16,11 @@ class Container(Model):
     def restart(self):
         return self.client.api.restart_container(self.Id)
 
+    def remove(self):
+        return self.client.api.delete_container(self.Id)
+
+    def rename(self, name):
+        return self.client.api.rename_container(self.Id, name=name)
 
     def __str__(self):
         return f"<{self.__class__.__name__}: {self.short_id}>"

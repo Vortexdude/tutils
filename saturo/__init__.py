@@ -27,8 +27,12 @@ class Docker:
 def main():
     dk = Docker()
     client = dk.from_env()
-    cc = client.containers.create(image="nginx", name="ssdsddf")
-    # print(cc)
+    # reposn = client.containers.create("nginx", name="saturo_gojo")
+    # print(reposn)
+    for con in client.containers.list(all_containers=True):
+        csd = con.rename("new_name")
+        print(csd)
+
 
 
 if __name__ == "__main__":
